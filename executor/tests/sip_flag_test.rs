@@ -1,16 +1,8 @@
 // Copyright (c) The Starcoin Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 use anyhow::Result;
-// use starcoin_crypto::hash::PlainCryptoHash;
 use starcoin_state_api::StateReaderExt;
-// use starcoin_types::identifier::Identifier;
-// use starcoin_types::language_storage::{ModuleId, StructTag, TypeTag};
-// use starcoin_types::transaction::ScriptFunction;
-// use starcoin_vm_types::account_config::core_code_address;
-// use starcoin_vm_types::account_config::{genesis_address, stc_type_tag};
 use starcoin_vm_types::sips::{G_SIPS, SIP};
-// use starcoin_vm_types::transaction::{Package, TransactionPayload};
-// use test_helper::dao::dao_vote_test;
 use test_helper::executor::*;
 use test_helper::Account;
 
@@ -48,7 +40,6 @@ fn test_sip_flags() -> Result<()> {
     //     .unwrap();
     // let package = Package::new_with_module(module)?;
     // let package_hash = package.crypto_hash();
-
     // let vote_script_function = ScriptFunction::new(
     //     ModuleId::new(
     //         core_code_address(),
@@ -86,7 +77,6 @@ fn test_sip_flags() -> Result<()> {
     //     0,
     // )?;
     // association_execute_should_success(&net, &chain_state, TransactionPayload::Package(package))?;
-
     // assert!(chain_state.is_activated(sip_10000)?);
     Ok(())
 }

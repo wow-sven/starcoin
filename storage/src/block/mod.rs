@@ -8,10 +8,10 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use bcs_ext::{BCSCodec, Sample};
-use crypto::HashValue;
-use logger::prelude::*;
 use network_types::peer_info::PeerId;
 use serde::{Deserialize, Serialize};
+use starcoin_crypto::HashValue;
+use starcoin_logger::prelude::*;
 use starcoin_types::block::{Block, BlockBody, BlockHeader};
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -110,7 +110,7 @@ define_storage!(
 #[derive(Clone)]
 pub struct BlockStorage {
     block_store: BlockInnerStorage,
-    header_store: BlockHeaderStorage,
+    pub(crate) header_store: BlockHeaderStorage,
     body_store: BlockBodyStorage,
     block_txns_store: BlockTransactionsStorage,
     block_txn_infos_store: BlockTransactionInfosStorage,

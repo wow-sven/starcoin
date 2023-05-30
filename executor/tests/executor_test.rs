@@ -3,8 +3,8 @@
 
 use anyhow::anyhow;
 use anyhow::Result;
-use logger::prelude::*;
 use starcoin_executor::validate_transaction;
+use starcoin_logger::prelude::*;
 use starcoin_transaction_builder::{
     build_batch_script_function_same_amount, build_transfer_txn,
     encode_create_account_script_function, raw_peer_to_peer_txn, DEFAULT_EXPIRATION_TIME,
@@ -18,7 +18,6 @@ use starcoin_types::{
     account_config, block_metadata::BlockMetadata, transaction::Transaction,
     transaction::TransactionPayload, transaction::TransactionStatus,
 };
-use starcoin_vm_types::access_path::AccessPath;
 use starcoin_vm_types::account_config::genesis_address;
 use starcoin_vm_types::account_config::AccountResource;
 use starcoin_vm_types::genesis_config::ChainId;
@@ -41,15 +40,16 @@ use test_helper::executor::{
 use starcoin_state_api::StateReaderExt;
 use starcoin_types::account::Account;
 use starcoin_types::account_config::G_STC_TOKEN_CODE;
+use starcoin_vm_runtime::starcoin_vm::StarcoinVM;
 use starcoin_vm_types::account_config::core_code_address;
+use starcoin_vm_types::state_store::state_key::StateKey;
 use test_helper::txn::create_account_txn_sent_as_association;
-use vm_runtime::starcoin_vm::StarcoinVM;
 
 #[derive(Default)]
 pub struct NullStateView;
 
 impl StateView for NullStateView {
-    fn get(&self, _access_path: &AccessPath) -> Result<Option<Vec<u8>>> {
+    fn get_state_value(&self, _state_key: &StateKey) -> Result<Option<Vec<u8>>> {
         Err(anyhow!("No data"))
     }
 
@@ -995,6 +995,59 @@ fn test_block_metadata() -> Result<()> {
     let balance = get_balance(*account1.address(), &chain_state);
 
     assert!(balance > 0);
+
+    Ok(())
+}
+
+#[stest::test]
+fn test_insufficient_balance_for_transaction_fee() -> Result<()> {
+    let (chain_state, net) = prepare_genesis();
+
+    let alice = Account::new();
+    let txn1 = starcoin_transaction_builder::build_transfer_from_association(
+        *alice.address(),
+        0,
+        20000000,
+        1,
+        &net,
+    );
+    let output1 = execute_and_apply(&chain_state, txn1);
+    assert_eq!(KeptVMStatus::Executed, output1.status().status().unwrap());
+    assert!(output1.gas_used() > 0);
+
+    let bob = Account::new();
+    let raw_txn1 = starcoin_transaction_builder::build_transfer_txn(
+        *alice.address(),
+        *bob.address(),
+        0,
+        10000000,
+        1,
+        DEFAULT_MAX_GAS_AMOUNT,
+        net.time_service().now_secs() + DEFAULT_EXPIRATION_TIME,
+        net.chain_id(),
+    );
+    let txn2 = Transaction::UserTransaction(alice.sign_txn(raw_txn1));
+    let output2 = execute_and_apply(&chain_state, txn2);
+    assert_eq!(
+        TransactionStatus::Discard(StatusCode::INSUFFICIENT_BALANCE_FOR_TRANSACTION_FEE),
+        *output2.status()
+    );
+
+    let tom = Account::new();
+    let raw_txn2 = starcoin_transaction_builder::build_transfer_txn(
+        *alice.address(),
+        *tom.address(),
+        0,
+        10000000,
+        1,
+        DEFAULT_MAX_GAS_AMOUNT / 4,
+        net.time_service().now_secs() + DEFAULT_EXPIRATION_TIME,
+        net.chain_id(),
+    );
+    let txn3 = Transaction::UserTransaction(alice.sign_txn(raw_txn2));
+    let output3 = execute_and_apply(&chain_state, txn3);
+    assert_eq!(KeptVMStatus::Executed, output3.status().status().unwrap());
+    assert!(output3.gas_used() > 0);
 
     Ok(())
 }

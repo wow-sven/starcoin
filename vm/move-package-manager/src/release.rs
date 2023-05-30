@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use move_binary_format::file_format_common::VERSION_3;
+use move_binary_format::file_format_common::VERSION_4;
 use move_binary_format::CompiledModule;
 use move_cli::sandbox::utils::PackageContext;
 use move_cli::Move;
@@ -21,9 +21,9 @@ pub const DEFAULT_RELEASE_DIR: &str = "release";
 
 #[derive(Parser)]
 pub struct Release {
-    #[clap(name = "move-version", long = "move-version", default_value="4", possible_values=&["3", "4"])]
+    #[clap(name = "move-version", long = "move-version", default_value="6", possible_values=&["5", "6"])]
     /// specify the move lang version for the release.
-    /// currently, only v3, v4 are supported.
+    /// currently, only v5, v6 are supported.
     language_version: u8,
 
     #[clap(name="release-dir", long, parse(from_os_str), default_value=DEFAULT_RELEASE_DIR)]
@@ -59,23 +59,28 @@ pub fn handle_release(
     }: Release,
 ) -> anyhow::Result<()> {
     let mut ms = vec![];
-    let pkg_ctx = PackageContext::new(&move_args.package_path, &move_args.build_config)?;
+    let package_path = match move_args.package_path {
+        Some(_) => move_args.package_path.clone(),
+        None => Some(std::env::current_dir()?),
+    };
+    let pkg_ctx = PackageContext::new(&package_path, &move_args.build_config)?;
     let pkg = pkg_ctx.package();
     let pkg_version = move_args
         .build_config
         .clone()
-        .resolution_graph_for_package(&move_args.package_path)
+        .resolution_graph_for_package(package_path.as_ref().unwrap(), &mut std::io::stdout())
         .unwrap()
         .root_package
         .package
         .version;
     let pkg_name = pkg.compiled_package_info.package_name.as_str();
     println!("Packaging Modules:");
-    for m in pkg.modules()? {
+    for m in pkg.root_compiled_units.as_slice() {
         let m = module(&m.unit)?;
         println!("\t {}", m.self_id());
-        let code = if language_version as u32 == VERSION_3 {
-            ModuleBytecodeDowngrader::to_v3(m)?
+        // XXX FIXME YSG, mpm release
+        let code = if language_version as u32 == VERSION_4 {
+            ModuleBytecodeDowngrader::to_v4(m)?
         } else {
             let mut data = vec![];
             m.serialize(&mut data)?;

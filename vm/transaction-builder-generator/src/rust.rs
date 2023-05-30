@@ -647,6 +647,7 @@ static G_SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<ScriptFunctionDecode
                 _ => common::type_not_allowed(type_tag),
             },
             Struct(_) | Signer => common::type_not_allowed(type_tag),
+            &U16 | &U32 | &U256 => todo!(),
         };
         writeln!(
             self.out,
@@ -780,6 +781,9 @@ fn decode_{}_argument(arg: TransactionArgument) -> Option<{}> {{
             },
 
             Struct(_) | Signer => common::type_not_allowed(type_tag),
+            U16 => "u16".into(),
+            U32 => "u32".into(),
+            U256 => "u256".into(),
         }
     }
 
@@ -797,6 +801,9 @@ fn decode_{}_argument(arg: TransactionArgument) -> Option<{}> {{
             },
 
             Struct(_) | Signer => common::type_not_allowed(type_tag),
+            U16 => format!("TransactionArgument::U16({})", name),
+            U32 => format!("TransactionArgument::U32({})", name),
+            U256 => format!("TransactionArgument::U256({})", name),
         }
     }
 }
@@ -833,7 +840,7 @@ impl crate::SourceInstaller for Installer {
         };
         let dir_path = self.install_dir.join(&name);
         std::fs::create_dir_all(&dir_path)?;
-        let mut cargo = std::fs::File::create(&dir_path.join("Cargo.toml"))?;
+        let mut cargo = std::fs::File::create(dir_path.join("Cargo.toml"))?;
         write!(
             cargo,
             r#"[package]
@@ -851,7 +858,7 @@ starcoin-types = {{ path = "../starcoin-types", version = "{}" }}
         )?;
         std::fs::create_dir(dir_path.join("src"))?;
         let source_path = dir_path.join("src/lib.rs");
-        let mut source = std::fs::File::create(&source_path)?;
+        let mut source = std::fs::File::create(source_path)?;
         output(&mut source, abis, /* local_types */ false)?;
         Ok(())
     }

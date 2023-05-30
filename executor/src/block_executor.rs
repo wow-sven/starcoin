@@ -7,8 +7,8 @@ use starcoin_types::error::BlockExecutorError;
 use starcoin_types::error::ExecutorResult;
 use starcoin_types::transaction::TransactionStatus;
 use starcoin_types::transaction::{Transaction, TransactionInfo};
+use starcoin_vm_runtime::metrics::VMMetrics;
 use starcoin_vm_types::contract_event::ContractEvent;
-use vm_runtime::metrics::VMMetrics;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BlockExecutedData {
@@ -59,7 +59,8 @@ pub fn block_execute<S: ChainStateReader + ChainStateWriter>(
                 let txn_state_root = chain_state
                     .commit()
                     .map_err(BlockExecutorError::BlockChainStateErr)?;
-
+                #[cfg(testing)]
+                info!("txn_hash {} gas_used {}", txn_hash, gas_used);
                 executed_data.txn_infos.push(TransactionInfo::new(
                     txn_hash,
                     txn_state_root,

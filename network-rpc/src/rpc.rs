@@ -2,33 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::PeerId;
-use accumulator::AccumulatorNode;
 use anyhow::Result;
-use crypto::HashValue;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use network_rpc_core::NetRpcError;
+use starcoin_accumulator::AccumulatorNode;
 use starcoin_chain_service::{ChainAsyncService, ChainReaderService};
+use starcoin_crypto::HashValue;
 use starcoin_network_rpc_api::{
     gen_server, BlockBody, GetAccountState, GetAccumulatorNodeByNodeHash, GetBlockHeadersByNumber,
-    GetBlockIds, GetStateWithProof, GetTxnsWithHash, GetTxnsWithSize, Ping, RpcRequest,
-    MAX_BLOCK_HEADER_REQUEST_SIZE, MAX_BLOCK_INFO_REQUEST_SIZE, MAX_BLOCK_REQUEST_SIZE,
-    MAX_TXN_REQUEST_SIZE,
+    GetBlockIds, GetStateWithProof, GetStateWithTableItemProof, GetTxnsWithHash, GetTxnsWithSize,
+    Ping, RpcRequest, MAX_BLOCK_HEADER_REQUEST_SIZE, MAX_BLOCK_INFO_REQUEST_SIZE,
+    MAX_BLOCK_REQUEST_SIZE, MAX_TXN_REQUEST_SIZE,
 };
 use starcoin_service_registry::ServiceRef;
-use starcoin_state_api::{ChainStateAsyncService, StateWithProof};
+use starcoin_state_api::{ChainStateAsyncService, StateWithProof, StateWithTableItemProof};
 use starcoin_state_service::ChainStateService;
+use starcoin_state_tree::StateNode;
 use starcoin_storage::Store;
+use starcoin_txpool::TxPoolService;
+use starcoin_txpool_api::TxPoolSyncService;
 use starcoin_types::block::Block;
 use starcoin_types::{
     account_state::AccountState,
     block::{BlockHeader, BlockInfo, BlockNumber},
     transaction::{SignedUserTransaction, Transaction, TransactionInfo},
 };
-use state_tree::StateNode;
 use std::sync::Arc;
-use txpool::TxPoolService;
-use txpool_api::TxPoolSyncService;
 
 pub struct NetworkRpcImpl {
     storage: Arc<dyn Store>,
@@ -232,6 +232,20 @@ impl gen_server::NetworkRpc for NetworkRpcImpl {
         let fut = async move {
             state_service
                 .get_with_proof_by_root(req.access_path, req.state_root)
+                .await
+        };
+        Box::pin(fut)
+    }
+
+    fn get_state_with_table_item_proof(
+        &self,
+        _peer_id: PeerId,
+        req: GetStateWithTableItemProof,
+    ) -> BoxFuture<Result<StateWithTableItemProof>> {
+        let state_service = self.state_service.clone();
+        let fut = async move {
+            state_service
+                .get_with_table_item_proof_by_root(req.handle, req.key, req.state_root)
                 .await
         };
         Box::pin(fut)

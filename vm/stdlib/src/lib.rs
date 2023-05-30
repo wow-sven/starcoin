@@ -7,8 +7,6 @@ use anyhow::{bail, ensure, format_err, Result};
 use include_dir::{include_dir, Dir};
 use log::{debug, info, LevelFilter};
 use move_bytecode_verifier::{dependencies, verify_module};
-use move_compiler::command_line::compiler::construct_pre_compiled_lib_from_compiler;
-use move_compiler::FullyCompiledProgram;
 use once_cell::sync::Lazy;
 use sha2::{Digest, Sha256};
 use starcoin_crypto::hash::PlainCryptoHash;
@@ -17,7 +15,6 @@ use starcoin_move_compiler::compiled_unit::{CompiledUnit, NamedCompiledModule};
 use starcoin_move_compiler::diagnostics::{
     report_diagnostics_to_color_buffer, unwrap_or_report_diagnostics,
 };
-use starcoin_move_compiler::shared::Flags;
 pub use starcoin_move_compiler::{starcoin_framework_named_addresses, Compiler};
 use starcoin_vm_types::file_format::CompiledModule;
 pub use starcoin_vm_types::genesis_config::StdlibVersion;
@@ -64,7 +61,7 @@ pub const STDLIB_DIR: Dir = starcoin_framework::SOURCES_DIR;
 // The current stdlib that is freshly built. This will never be used in deployment so we don't need
 // to pull the same trick here in order to include this in the Rust binary.
 static G_FRESH_MOVE_LANG_STDLIB: Lazy<Vec<Vec<u8>>> = Lazy::new(|| {
-    build_stdlib(STARCOIN_FRAMEWORK_SOURCES.files().as_slice())
+    build_stdlib(STARCOIN_FRAMEWORK_SOURCES.files.as_slice())
         .values()
         .map(|m| {
             let mut blob = vec![];
@@ -105,33 +102,6 @@ pub static G_COMPILED_STDLIB: Lazy<HashMap<StdlibVersion, Vec<Vec<u8>>>> = Lazy:
 
 pub const SCRIPT_HASH_LENGTH: usize = HashValue::LENGTH;
 
-pub static G_PRECOMPILED_STARCOIN_FRAMEWORK: Lazy<FullyCompiledProgram> = Lazy::new(|| {
-    let sources = stdlib_files();
-    let compiler = Compiler::new(&sources, &[])
-        .set_flags(Flags::empty().set_sources_shadow_deps(false))
-        .set_named_address_values(starcoin_framework_named_addresses());
-    let program_res = construct_pre_compiled_lib_from_compiler(compiler).unwrap();
-    match program_res {
-        Ok(df) => {
-            let compiled = df.compiled;
-            {
-                let compiler = Compiler::new(&[], &sources)
-                    .set_flags(Flags::empty().set_sources_shadow_deps(false))
-                    .set_named_address_values(starcoin_framework_named_addresses());
-                let mut program_as_lib = construct_pre_compiled_lib_from_compiler(compiler)
-                    .unwrap()
-                    .unwrap();
-                program_as_lib.compiled = compiled;
-                program_as_lib
-            }
-        }
-        Err((files, errors)) => {
-            eprintln!("!!!Starcoin Framework failed to compile!!!");
-            move_compiler::diagnostics::report_diagnostics(&files, errors)
-        }
-    }
-});
-
 pub use starcoin_framework::STARCOIN_FRAMEWORK_SOURCES;
 
 /// Return all versions of stdlib, include latest.
@@ -161,11 +131,18 @@ pub enum StdLibOptions {
 /// will be used.
 pub fn stdlib_modules(option: StdLibOptions) -> &'static [Vec<u8>] {
     match option {
-        StdLibOptions::Fresh => &*G_FRESH_MOVE_LANG_STDLIB,
+        StdLibOptions::Fresh => &G_FRESH_MOVE_LANG_STDLIB,
         StdLibOptions::Compiled(version) => G_COMPILED_STDLIB
             .get(&version)
             .unwrap_or_else(|| panic!("Stdlib version {:?} not exist.", version)),
     }
+}
+
+pub fn stdlib_compiled_modules(option: StdLibOptions) -> Vec<CompiledModule> {
+    stdlib_modules(option)
+        .iter()
+        .map(|bytes| CompiledModule::deserialize(bytes).unwrap())
+        .collect()
 }
 
 pub fn stdlib_package(
@@ -184,15 +161,18 @@ pub fn module_to_package(
 }
 
 pub fn stdlib_files() -> Vec<String> {
-    STARCOIN_FRAMEWORK_SOURCES.files()
+    STARCOIN_FRAMEWORK_SOURCES.files.clone()
 }
 
 pub fn build_stdlib(targets: &[String]) -> BTreeMap<String, CompiledModule> {
     let compiled_units = {
-        let (files, units_res) = Compiler::new(targets, &[])
-            .set_named_address_values(starcoin_framework_named_addresses())
-            .build()
-            .unwrap();
+        let (files, units_res) = Compiler::from_files(
+            targets.to_vec(),
+            vec![],
+            starcoin_framework_named_addresses(),
+        )
+        .build()
+        .unwrap();
         let (units, warnings) = unwrap_or_report_diagnostics(&files, units_res);
         println!(
             "{}",

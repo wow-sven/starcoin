@@ -314,6 +314,9 @@ using namespace diem_types;
                 _ => common::type_not_allowed(type_tag),
             },
             Struct(_) | Signer => common::type_not_allowed(type_tag),
+            U16 => "uint16_t".into(),
+            U32 => "uint32_t".into(),
+            U256 => "u256_t".into(),
         }
     }
 
@@ -332,6 +335,9 @@ using namespace diem_types;
             },
 
             Struct(_) | Signer => common::type_not_allowed(type_tag),
+            U16 => format!("{{TransactionArgument::U16 {{{}}} }}", name),
+            U32 => format!("{{TransactionArgument::U32 {{{}}} }}", name),
+            U256 => format!("{{TransactionArgument::U256 {{{}}} }}", name),
         }
     }
 }
@@ -357,10 +363,10 @@ impl crate::SourceInstaller for Installer {
         let dir_path = &self.install_dir;
         std::fs::create_dir_all(dir_path)?;
         let header_path = dir_path.join(name.to_string() + ".hpp");
-        let mut header = std::fs::File::create(&header_path)?;
+        let mut header = std::fs::File::create(header_path)?;
         output_library_header(&mut header, abis, Some(name))?;
         let body_path = dir_path.join(name.to_string() + ".cpp");
-        let mut body = std::fs::File::create(&body_path)?;
+        let mut body = std::fs::File::create(body_path)?;
         output_library_body(&mut body, abis, name, Some(name))?;
         Ok(())
     }

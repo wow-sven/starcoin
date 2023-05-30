@@ -6,11 +6,11 @@ use crate::node_index::{NodeIndex, MAX_ACCUMULATOR_PROOF_DEPTH};
 use crate::tree_store::NodeCacheKey;
 use crate::{AccumulatorNode, AccumulatorTreeStore, LeafCount, NodeCount, MAC_CACHE_SIZE};
 use anyhow::{bail, format_err, Result};
-use logger::prelude::*;
 use lru::LruCache;
 use mirai_annotations::*;
 use starcoin_crypto::hash::ACCUMULATOR_PLACEHOLDER_HASH;
 use starcoin_crypto::HashValue;
+use starcoin_logger::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -136,7 +136,7 @@ impl AccumulatorTree {
         // placeholder hash nodes as needed on the right, and left siblings that have either
         // been newly created or read from storage.
         let (mut pos, mut hash) = left_siblings.pop().expect("Must have at least one node");
-        for _ in pos.level()..root_level as u32 {
+        for _ in pos.level()..root_level {
             hash = if pos.is_left_child() {
                 let not_frozen = AccumulatorNode::new_internal(
                     pos.parent(),
@@ -378,7 +378,7 @@ impl AccumulatorTree {
         if self.num_leaves == 0 {
             0_u64
         } else {
-            (self.num_leaves - 1) as u64
+            self.num_leaves - 1
         }
     }
 

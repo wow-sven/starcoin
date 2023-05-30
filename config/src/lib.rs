@@ -329,9 +329,11 @@ impl BaseConfig {
                 if config_in_file.is_ready() && net.genesis_config().is_ready() {
                     ensure!(
                         &config_in_file == net.genesis_config(),
-                        "GenesisConfig in file:{:?} is not same with builtin config: {:?}",
+                        "GenesisConfig in file:{:?} is not same with builtin config: {:?}\n{:?}\n*****\n{:?}",
                         config_path.as_path(),
-                        net
+                        net,
+                        config_in_file,
+                        net.genesis_config(),
                     );
                 }
                 config_in_file
@@ -562,6 +564,6 @@ pub fn check_open_fds_limit(max_files: u64) -> Result<(), ConfigError> {
 }
 
 #[cfg(not(unix))]
-pub fn check_open_fds_limit(max_files: u64) -> Result<(), ConfigError> {
+pub fn check_open_fds_limit(_max_files: u64) -> Result<(), ConfigError> {
     Ok(())
 }

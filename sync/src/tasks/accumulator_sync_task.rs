@@ -5,10 +5,10 @@ use crate::tasks::BlockIdFetcher;
 use anyhow::{ensure, format_err, Result};
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use logger::prelude::*;
 use starcoin_accumulator::accumulator_info::AccumulatorInfo;
 use starcoin_accumulator::{Accumulator, AccumulatorTreeStore, MerkleAccumulator};
 use starcoin_crypto::HashValue;
+use starcoin_logger::prelude::*;
 use starcoin_types::block::{BlockIdAndNumber, BlockNumber};
 use std::sync::Arc;
 use stream_task::{CollectorState, TaskResultCollector, TaskState};
@@ -69,7 +69,7 @@ impl TaskState for BlockAccumulatorSyncTask {
     }
 
     fn next(&self) -> Option<Self> {
-        let next_start_number = self.start_number.saturating_add(self.batch_size as u64);
+        let next_start_number = self.start_number.saturating_add(self.batch_size);
         if next_start_number >= self.target.num_leaves {
             None
         } else {

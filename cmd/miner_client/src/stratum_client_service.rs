@@ -7,9 +7,9 @@ use jsonrpc_core::{Params, Version};
 use jsonrpc_server_utils::codecs::StreamCodec;
 use jsonrpc_server_utils::tokio::net::TcpStream;
 use jsonrpc_server_utils::tokio_util::codec::Decoder;
-use logger::prelude::*;
 use serde::{Deserialize, Serialize};
 use starcoin_config::MinerClientConfig;
+use starcoin_logger::prelude::*;
 use starcoin_service_registry::{
     ActorService, ServiceContext, ServiceFactory, ServiceHandler, ServiceRequest,
 };
@@ -315,7 +315,7 @@ impl ServiceFactory<StratumClientService> for StratumClientServiceServiceFactory
     fn create(ctx: &mut ServiceContext<StratumClientService>) -> Result<StratumClientService> {
         let cfg = ctx.get_shared::<MinerClientConfig>()?;
         let addr = cfg.server.unwrap_or_else(|| "127.0.0.1:9880".into());
-        let tcp_stream = Some(std::net::TcpStream::connect(&addr)?);
+        let tcp_stream = Some(std::net::TcpStream::connect(addr)?);
         Ok(StratumClientService {
             sender: None,
             tcp_stream,
